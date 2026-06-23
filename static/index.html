@@ -435,7 +435,10 @@
   }
 
   /* ── Flip card (success) ─────────────────────────────────── */
-  .flip-card { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .flip-card {
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    perspective: 1200px;
+  }
   .flip-inner {
     position: relative;
     transform-style: preserve-3d;
@@ -445,12 +448,29 @@
   .flip-front, .flip-back {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    /* backdrop-filter creates a stacking context that breaks preserve-3d */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255,255,255,0.92);
   }
   .flip-back {
     position: absolute; inset: 0;
     transform: rotateY(180deg);
     display: flex; align-items: center; justify-content: center;
   }
+  /* card hover lift overrides flip transforms → strip transform from transition & disable lift */
+  .flip-card .card { transition: box-shadow .25s, visibility 0s 0.3s; }
+  .flip-card .card:hover { transform: none; box-shadow: 0 4px 24px rgba(79,110,247,0.08), 0 1px 4px rgba(0,0,0,0.05); }
+  /* overflow:clip clips to border-radius without creating a stacking context (unlike hidden) */
+  .flip-front.card, .flip-back.card { overflow: clip; }
+  /* back face must always keep its rotation — hover must not override it */
+  .flip-back.card, .flip-back.card:hover { transform: rotateY(180deg); }
+  /* backface-visibility is unreliable in Chrome — control both faces explicitly.
+     cubic-bezier(0.4,0,0.2,1) hits 90° at Bézier t=0.5 → x≈0.35 → 0.35×0.85s ≈ 0.3s.
+     Back hides at 0.3s when going to front; front hides at 0.3s when going to back. */
+  .flip-back { visibility: hidden; transition: visibility 0s 0.3s; }
+  .flip-card.flipped .flip-back  { visibility: visible; transition: visibility 0s 0.3s; }
+  .flip-card.flipped .flip-front { visibility: hidden;  transition: visibility 0s 0.3s; }
   .flip-hint-row {
     display: flex; align-items: center; justify-content: center; gap: 5px;
     margin-top: 14px; font-size: 12px; color: #aeaeb2;
@@ -1302,7 +1322,7 @@ const QUOTES = [
   { text: '世界以痛吻我，要我报之以歌。', author: '——泰戈尔《飞鸟集》' },
   { text: '所谓无底深渊，下去，也是前程万里。', author: '——木心' },
 ];
-fetch('quotes.md').then(r => r.text()).then(txt => {
+fetch('/appointment/static/quotes.md').then(r => r.text()).then(txt => {
   const parsed = txt.split('\n')
     .filter(l => l.includes(' | ') && !l.trimStart().startsWith('#') && !l.trimStart().startsWith('<'))
     .map(l => { const [t, a] = l.split(' | '); return { text: t.trim(), author: '——' + a.trim() }; })
