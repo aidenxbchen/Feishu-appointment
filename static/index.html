@@ -5,313 +5,705 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>预约会议 — 陈曦斌</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --a1: #4f6ef7;   /* indigo  */
+    --a2: #9055f5;   /* purple  */
+    --a3: #06b6d4;   /* cyan    */
+    --text:  #1e293b;
+    --muted: #64748b;
+    --surface: rgba(255,255,255,0.78);
+  }
+
+  html { -webkit-font-smoothing: antialiased; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
-    background: #f5f5f5;
-    color: #1a1a1a;
+    background: #ebf3fd;
+    color: var(--text);
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
+  /* ── Floating background blobs ───────────────────────────── */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob-1 {
+    width: 420px; height: 420px;
+    background: rgba(79, 110, 247, 0.22);
+    top: -120px; left: -100px;
+    animation: blobDrift1 18s ease-in-out infinite;
+  }
+  .blob-2 {
+    width: 320px; height: 320px;
+    background: rgba(144, 85, 245, 0.18);
+    top: 60px; right: -80px;
+    animation: blobDrift2 14s ease-in-out infinite;
+  }
+  .blob-3 {
+    width: 360px; height: 360px;
+    background: rgba(6, 182, 212, 0.14);
+    bottom: -100px; left: 50%;
+    transform: translateX(-50%);
+    animation: blobDrift3 20s ease-in-out infinite;
+  }
+  @keyframes blobDrift1 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%     { transform: translate(40px, 50px) scale(1.08); }
+    66%     { transform: translate(-30px, 20px) scale(0.95); }
+  }
+  @keyframes blobDrift2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%     { transform: translate(-50px, 60px) scale(1.12); }
+  }
+  @keyframes blobDrift3 {
+    0%,100% { transform: translateX(-50%) scale(1); }
+    50%     { transform: translateX(-50%) scale(1.15) translateY(-30px); }
+  }
+
+  /* ── Container ───────────────────────────────────────────── */
   .container {
-    max-width: 640px;
+    position: relative; z-index: 1;
+    max-width: 600px;
     margin: 0 auto;
-    padding: 32px 16px 64px;
+    padding: 56px 20px 100px;
+  }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  .page-header { margin-bottom: 36px; }
+
+  .header-icon {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 12px;
+    animation: iconFloat 3s ease-in-out infinite;
+  }
+  @keyframes iconFloat {
+    0%,100% { transform: translateY(0) rotate(-3deg); }
+    50%     { transform: translateY(-6px) rotate(3deg); }
   }
 
   h1 {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    background: linear-gradient(270deg, var(--a1), var(--a2), var(--a3), var(--a1));
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradShift 6s ease infinite;
+  }
+  @keyframes gradShift {
+    0%   { background-position: 0%   50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0%   50%; }
   }
 
-  .subtitle {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 32px;
-  }
+  .subtitle { color: var(--muted); font-size: 15px; line-height: 1.6; }
 
-  /* Step indicator */
+  /* ── Step indicator ──────────────────────────────────────── */
   .steps {
-    display: flex;
-    align-items: center;
-    margin-bottom: 32px;
-    gap: 0;
+    display: flex; align-items: center;
+    margin-bottom: 28px;
   }
-  .step-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
+  .step-item { display: flex; align-items: center; gap: 8px; }
+
   .step-dot {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #e0e0e0;
-    color: #999;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(0,0,0,0.08); color: #aeaeb2;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    transition: all .2s;
+    transition: background .25s, box-shadow .3s;
   }
-  .step-dot.active { background: #1a1a1a; color: #fff; }
-  .step-dot.done { background: #4caf50; color: #fff; }
-  .step-label { font-size: 13px; color: #666; white-space: nowrap; }
-  .step-label.active { color: #1a1a1a; font-weight: 600; }
+  .step-dot.active {
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    color: #fff;
+    box-shadow: 0 0 0 5px rgba(79,110,247,0.2);
+    animation: dotPop .5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .step-dot.done {
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    color: #fff;
+  }
+  @keyframes dotPop {
+    0%   { transform: scale(0.5); }
+    100% { transform: scale(1); }
+  }
+
+  .step-label { font-size: 13px; color: #aeaeb2; white-space: nowrap; transition: color .2s; }
+  .step-label.active { color: var(--text); font-weight: 600; }
+
   .step-connector {
-    flex: 1;
-    height: 1px;
-    background: #e0e0e0;
-    margin: 0 8px;
+    flex: 1; height: 2px;
+    background: rgba(0,0,0,0.08);
+    margin: 0 10px; border-radius: 1px;
+    position: relative; overflow: hidden;
   }
+  .step-connector::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(to right, var(--a1), var(--a2));
+    border-radius: 1px;
+    transform: scaleX(0); transform-origin: left;
+    transition: transform .5s cubic-bezier(0.4,0,0.2,1);
+  }
+  .step-connector.done::after { transform: scaleX(1); }
 
-  /* Cards */
+  /* ── Cards ───────────────────────────────────────────────── */
   .card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    background: var(--surface);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.75);
+    box-shadow: 0 4px 24px rgba(79,110,247,0.08), 0 1px 4px rgba(0,0,0,0.05);
     margin-bottom: 16px;
+    position: relative; overflow: hidden;
+    transition: transform .25s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow .25s;
+  }
+  /* Spotlight */
+  .card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 20px;
+    background: radial-gradient(300px circle at var(--mx,-400px) var(--my,-400px),
+      rgba(79,110,247,0.1) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .card > * { position: relative; z-index: 1; }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(79,110,247,0.15), 0 2px 8px rgba(0,0,0,0.06);
   }
 
+  /* ── Labels / Inputs ─────────────────────────────────────── */
   label {
     display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 6px; letter-spacing: -0.1px;
   }
-
   input[type=text], textarea {
     width: 100%;
-    border: 1.5px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 15px;
-    font-family: inherit;
+    border: 1.5px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 16px; font-family: inherit;
     outline: none;
-    transition: border-color .15s;
+    background: rgba(255,255,255,0.7);
+    color: var(--text);
+    transition: border-color .2s, box-shadow .2s, background .2s;
     resize: vertical;
   }
-  input[type=text]:focus, textarea:focus { border-color: #1a1a1a; }
-
-  .hint { font-size: 12px; color: #999; margin-top: 4px; }
-
-  .form-group { margin-bottom: 20px; }
+  input[type=text]::placeholder, textarea::placeholder { color: #c7c7cc; }
+  input[type=text]:focus, textarea:focus {
+    border-color: var(--a1);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79,110,247,0.16);
+  }
+  .hint { font-size: 12px; color: #aeaeb2; margin-top: 5px; line-height: 1.5; }
+  .form-group { margin-bottom: 22px; }
   .form-group:last-child { margin-bottom: 0; }
 
-  /* Buttons */
+  /* ── Buttons ─────────────────────────────────────────────── */
   .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    border: none;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .15s;
-    font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; border: none; cursor: pointer;
+    font-family: inherit; font-weight: 700;
+    position: relative; overflow: hidden;
+    transition: transform .2s cubic-bezier(0.34,1.56,0.64,1), box-shadow .2s;
   }
-  .btn-primary { background: #1a1a1a; color: #fff; width: 100%; }
-  .btn-primary:hover { background: #333; }
-  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* Ripple */
+  .ripple-effect {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.32);
+    transform: scale(0);
+    animation: rippleAnim .6s linear;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+
+  /* Shine sweep */
+  .btn-primary::after {
+    content: ''; position: absolute;
+    top: -50%; left: -60%; width: 40%; height: 200%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
+    transform: skewX(-20deg);
+    transition: left .5s ease;
+    pointer-events: none;
+  }
+  .btn-primary:hover:not(:disabled)::after { left: 120%; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--a1) 0%, var(--a2) 100%);
+    color: #fff; width: 100%;
+    padding: 14px 28px; border-radius: 14px; font-size: 15px;
+    box-shadow: 0 4px 18px rgba(79,110,247,0.38);
+    letter-spacing: -0.2px;
+  }
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 8px 28px rgba(79,110,247,0.48);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+    box-shadow: 0 2px 10px rgba(79,110,247,0.3);
+  }
+  .btn-primary:disabled {
+    background: rgba(0,0,0,0.1); color: rgba(0,0,0,0.3);
+    cursor: not-allowed; box-shadow: none; transform: none;
+  }
+  .btn-primary:disabled::after { display: none; }
+
   .btn-secondary {
-    background: transparent;
-    color: #666;
-    border: 1.5px solid #e0e0e0;
-    margin-bottom: 12px;
+    background: transparent; padding: 0 0 14px 0;
+    font-size: 14px; font-weight: 600; width: auto; gap: 4px;
+    color: var(--a1);
   }
-  .btn-secondary:hover { border-color: #999; color: #333; }
+  .btn-secondary:hover { color: var(--a2); transform: translateX(-2px); }
 
-  /* Date picker */
-  .date-tabs {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
+  /* ── Date tabs ───────────────────────────────────────────── */
+  .date-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
   .date-tab {
-    padding: 8px 14px;
-    border: 1.5px solid #e0e0e0;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    background: #fff;
+    padding: 8px 13px;
+    border: 1.5px solid rgba(0,0,0,0.08);
+    border-radius: 12px; cursor: pointer;
+    font-size: 12px; font-weight: 600;
+    background: rgba(255,255,255,0.6);
     text-align: center;
-    transition: all .15s;
-    min-width: 64px;
+    transition: all .18s cubic-bezier(0.34,1.56,0.64,1);
+    min-width: 58px; color: var(--text);
   }
-  .date-tab:hover { border-color: #999; }
-  .date-tab.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-  .date-tab .dow { font-size: 11px; opacity: .7; }
+  .date-tab:hover {
+    border-color: var(--a1); color: var(--a1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79,110,247,0.2);
+  }
+  .date-tab.selected {
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    color: #fff; border-color: transparent;
+    box-shadow: 0 4px 14px rgba(79,110,247,0.35);
+    transform: translateY(-1px);
+  }
+  .date-tab .dow { font-size: 10px; opacity: .75; margin-top: 2px; }
 
-  /* Time grid */
-  .time-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
+  /* ── Time grid ───────────────────────────────────────────── */
+  .time-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
   .time-slot {
-    padding: 10px 8px;
-    border: 1.5px solid #e0e0e0;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
+    padding: 11px 8px;
+    border: 1.5px solid rgba(0,0,0,0.08);
+    border-radius: 12px; cursor: pointer;
+    font-size: 13px; font-weight: 600;
     text-align: center;
-    transition: all .15s;
-    background: #fff;
+    background: rgba(255,255,255,0.6);
     user-select: none;
+    opacity: 0; transform: translateY(10px) scale(0.95);
+    animation: slotIn .3s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    transition: all .18s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .time-slot:hover:not(.busy):not(.selected) { border-color: #999; }
+  @keyframes slotIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .time-slot:hover:not(.busy):not(.selected) {
+    border-color: var(--a1); color: var(--a1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79,110,247,0.18);
+    background: rgba(79,110,247,0.05);
+  }
   .time-slot.busy {
-    background: #f5f5f5;
-    color: #bbb;
-    cursor: not-allowed;
-    border-color: #e8e8e8;
-    text-decoration: line-through;
+    background: rgba(0,0,0,0.03); color: #c7c7cc;
+    cursor: not-allowed; border-color: rgba(0,0,0,0.04);
+    font-weight: 400; transform: none;
   }
   .time-slot.selected {
-    background: #1a1a1a;
-    color: #fff;
-    border-color: #1a1a1a;
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    color: #fff; border-color: transparent;
+    box-shadow: 0 4px 16px rgba(79,110,247,0.35);
+    transform: scale(1.04);
+    opacity: 1; /* slotSelect 覆盖了 slotIn，需要显式还原 */
+    animation: slotSelect .4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+  @keyframes slotSelect {
+    0%   { transform: scale(0.9); }
+    60%  { transform: scale(1.08); }
+    100% { transform: scale(1.04); }
   }
 
-  /* Summary */
+  /* ── Summary ─────────────────────────────────────────────── */
   .summary-row {
-    display: flex;
-    gap: 16px;
-    padding: 10px 0;
-    border-bottom: 1px solid #f0f0f0;
+    display: flex; gap: 16px;
+    padding: 13px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
     font-size: 14px;
   }
   .summary-row:last-child { border-bottom: none; }
-  .summary-label { color: #666; width: 80px; flex-shrink: 0; }
-  .summary-value { color: #1a1a1a; font-weight: 500; }
+  .summary-label { color: var(--muted); width: 76px; flex-shrink: 0; font-size: 13px; }
+  .summary-value { color: var(--text); font-weight: 500; line-height: 1.5; }
 
+  /* ── Loaders ─────────────────────────────────────────────── */
   .loading-spinner {
-    display: inline-block;
-    width: 16px; height: 16px;
-    border: 2px solid #fff;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin .6s linear infinite;
+    display: inline-block; width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%; animation: spin .6s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  .skeleton-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .skeleton-slot {
+    height: 44px; border-radius: 12px;
+    background: linear-gradient(90deg,
+      rgba(79,110,247,0.07) 25%,
+      rgba(144,85,245,0.12) 50%,
+      rgba(79,110,247,0.07) 75%);
+    background-size: 200% 100%;
+    animation: skelAnim 1.4s ease infinite;
+  }
+  .skeleton-slot:nth-child(odd)  { animation-delay: .07s; }
+  .skeleton-slot:nth-child(3n)   { animation-delay: .14s; }
+  @keyframes skelAnim { 0%{background-position:200%} 100%{background-position:-200%} }
+
+  /* ── Alert ───────────────────────────────────────────────── */
   .alert {
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    margin-bottom: 16px;
+    padding: 12px 16px; border-radius: 12px;
+    font-size: 14px; margin-bottom: 16px; line-height: 1.5;
   }
-  .alert-error { background: #fff3f3; color: #c0392b; border: 1px solid #fcc; }
-  .alert-success { background: #f0fff4; color: #1e7e34; border: 1px solid #b2dfdb; }
-
-  .success-icon {
-    font-size: 48px;
-    text-align: center;
-    margin-bottom: 16px;
+  .alert-error {
+    background: rgba(239,68,68,0.08); color: #dc2626;
+    border: 1px solid rgba(239,68,68,0.2);
   }
-  .success-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; }
-  .success-desc { font-size: 14px; color: #666; text-align: center; }
 
-  .legend {
+  /* ── Legend ──────────────────────────────────────────────── */
+  .legend { display: flex; gap: 16px; margin-bottom: 14px; font-size: 12px; color: var(--muted); }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 4px; border: 1.5px solid rgba(0,0,0,0.1); }
+  .legend-dot.free { background: rgba(255,255,255,0.6); }
+  .legend-dot.busy { background: rgba(0,0,0,0.04); }
+  .legend-dot.sel  { background: linear-gradient(135deg, var(--a1), var(--a2)); border-color: transparent; }
+
+  /* ── Success ─────────────────────────────────────────────── */
+  .success-wrap { text-align: center; padding: 44px 20px; }
+
+  .success-icon-wrap {
+    width: 80px; height: 80px;
+    margin: 0 auto 22px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .success-ring-1, .success-ring-2 {
+    position: absolute; inset: 0; border-radius: 50%;
+  }
+  .success-ring-1 {
+    background: rgba(79,110,247,0.12);
+    animation: ringPulse 2.2s ease-in-out infinite;
+  }
+  .success-ring-2 {
+    background: rgba(144,85,245,0.08);
+    animation: ringPulse 2.2s ease-in-out .4s infinite;
+  }
+  @keyframes ringPulse {
+    0%,100% { transform: scale(1);    opacity: 1; }
+    50%     { transform: scale(1.22); opacity: 0.4; }
+  }
+
+  .success-title {
+    font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .success-desc { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+  /* ── Textarea hint bullet list ───────────────────────────── */
+  .hint-list { margin-top: 7px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+  .hint-list li {
+    font-size: 12px; color: #aeaeb2; line-height: 1.6;
+    padding-left: 14px; position: relative;
+  }
+  .hint-list li::before {
+    content: '·'; position: absolute; left: 3px; top: -1px;
+    color: var(--a1); opacity: 0.5; font-size: 20px; line-height: 1;
+  }
+
+  /* ── Flip card (success) ─────────────────────────────────── */
+  .flip-card { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform .85s cubic-bezier(0.4,0,0.2,1);
+  }
+  .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-front, .flip-back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .flip-back {
+    position: absolute; inset: 0;
+    transform: rotateY(180deg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .flip-hint-row {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    margin-top: 14px; font-size: 12px; color: #aeaeb2;
+    animation: flipHintPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes flipHintPulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
+
+  /* Quote back */
+  .quote-wrap { text-align: center; padding: 8px 12px; width: 100%; }
+  .quote-bigmark {
+    font-size: 64px; line-height: .75;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: linear-gradient(135deg, var(--a1), var(--a2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; display: block; margin-bottom: 14px;
+  }
+  .quote-text {
+    font-size: 15px; font-weight: 500; line-height: 1.85;
+    color: var(--text); margin-bottom: 14px;
+  }
+  .quote-author { font-size: 12px; color: var(--muted); font-style: italic; }
+  .quote-back-hint { font-size: 11px; color: #c7c7cc; margin-top: 16px; }
+
+  /* ── Step panel transition ───────────────────────────────── */
+  @keyframes stepIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+  .step-enter { animation: stepIn .38s cubic-bezier(0.34,1.56,0.64,1); }
+
+  /* ── Particles ───────────────────────────────────────────── */
+  @keyframes particleFly {
+    0%   { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     几何色块小人（careercompassai 复刻）
+  ══════════════════════════════════════════════════════════ */
+  .figures-panel {
+    position: fixed;
+    bottom: 0;
+    left: calc(50% + 310px);
+    transform-origin: bottom left;
+    transform: scale(0.58);
+    z-index: 20;
+    pointer-events: none;
+  }
+  @media (max-width: 1150px) { .figures-panel { display: none; } }
+
+  .chars-wrap {
+    position: relative;
+    width: 550px;
+    height: 400px;
+  }
+
+  /* Base character block */
+  .ch {
+    position: absolute;
+    bottom: 0;
+    transform-origin: bottom center;
+    transition: transform 700ms ease-in-out, height 700ms ease-in-out;
+  }
+
+  /* Purple — left rect */
+  .ch-purple {
+    left: 70px; width: 180px; height: 400px;
+    background: #6C3FF5;
+    border-radius: 10px 10px 0 0;
+    z-index: 1;
+  }
+  /* Dark — center rect */
+  .ch-dark {
+    left: 240px; width: 120px; height: 310px;
+    background: #2D2D2D;
+    border-radius: 8px 8px 0 0;
+    z-index: 2;
+  }
+  /* Orange — front-left semicircle */
+  .ch-orange {
+    left: 0; width: 240px; height: 200px;
+    background: #FF9B6B;
+    border-radius: 120px 120px 0 0;
+    z-index: 3;
+  }
+  /* Yellow — right semicircle */
+  .ch-yellow {
+    left: 310px; width: 140px; height: 230px;
+    background: #E8D754;
+    border-radius: 70px 70px 0 0;
+    z-index: 4;
+  }
+
+  /* Eye rows */
+  .eyes-row {
+    position: absolute;
     display: flex;
-    gap: 16px;
-    margin-bottom: 12px;
-    font-size: 12px;
-    color: #666;
+    transition: left 700ms ease-in-out, top 700ms ease-in-out;
   }
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-dot {
-    width: 12px; height: 12px;
-    border-radius: 3px;
-    border: 1.5px solid #e0e0e0;
-  }
-  .legend-dot.free { background: #fff; }
-  .legend-dot.busy { background: #f5f5f5; }
-  .legend-dot.sel { background: #1a1a1a; border-color: #1a1a1a; }
+  #eyesP { gap: 32px; left: 45px; top: 40px; }
+  #eyesD { gap: 24px; left: 26px; top: 32px; }
+  #eyesO { gap: 32px; left: 82px; top: 90px; }
+  #eyesY { gap: 24px; left: 52px; top: 40px; }
 
-  .loading-slots {
-    text-align: center;
-    padding: 32px;
-    color: #999;
-    font-size: 14px;
+  .eye {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: white;
+    flex-shrink: 0;
+    transition: height 150ms, width 150ms;
+  }
+  .eye-lg { width: 18px; height: 18px; }
+  .eye-md { width: 16px; height: 16px; }
+  .eye-sm { width: 12px; height: 12px; }
+
+  .pupil {
+    border-radius: 50%;
+    background: #2D2D2D;
+    flex-shrink: 0;
+    transition: transform 100ms ease-out;
+  }
+  .pupil-lg { width: 7px;  height: 7px; }
+  .pupil-md { width: 6px;  height: 6px; }
+  .pupil-sm { width: 6px;  height: 6px; }
+
+  /* Yellow mouth */
+  .ch-mouth {
+    position: absolute;
+    width: 80px; height: 4px;
+    background: #2D2D2D;
+    border-radius: 9999px;
+    left: 40px; top: 88px;
+    transition: left 200ms ease-out, top 200ms ease-out;
   }
 </style>
 </head>
 <body>
+
+<!-- Floating background blobs -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<!-- 几何色块小人（careercompassai 风格复刻） -->
+<div class="figures-panel" id="figuresPanel">
+  <div class="chars-wrap">
+
+    <!-- 紫色：矩形，左侧，z:1 -->
+    <div class="ch ch-purple" id="chP">
+      <div class="eyes-row" id="eyesP">
+        <div class="eye eye-lg" id="eP1"><div class="pupil pupil-lg"></div></div>
+        <div class="eye eye-lg" id="eP2"><div class="pupil pupil-lg"></div></div>
+      </div>
+    </div>
+
+    <!-- 深色：矩形，中间，z:2 -->
+    <div class="ch ch-dark" id="chD">
+      <div class="eyes-row" id="eyesD">
+        <div class="eye eye-md" id="eD1"><div class="pupil pupil-md"></div></div>
+        <div class="eye eye-md" id="eD2"><div class="pupil pupil-md"></div></div>
+      </div>
+    </div>
+
+    <!-- 橙色：半圆，前左，z:3（遮住紫色下半部分） -->
+    <div class="ch ch-orange" id="chO">
+      <div class="eyes-row" id="eyesO">
+        <div class="eye eye-sm" id="eO1"><div class="pupil pupil-sm"></div></div>
+        <div class="eye eye-sm" id="eO2"><div class="pupil pupil-sm"></div></div>
+      </div>
+    </div>
+
+    <!-- 黄色：半圆，右侧，z:4，有嘴巴 -->
+    <div class="ch ch-yellow" id="chY">
+      <div class="eyes-row" id="eyesY">
+        <div class="eye eye-sm" id="eY1"><div class="pupil pupil-sm"></div></div>
+        <div class="eye eye-sm" id="eY2"><div class="pupil pupil-sm"></div></div>
+      </div>
+      <div class="ch-mouth" id="mouthY"></div>
+    </div>
+
+  </div>
+</div>
+
 <div class="container">
-  <h1>预约会议</h1>
-  <p class="subtitle">请填写信息并选择合适的时间，我会在飞书日历中为你创建邀约</p>
+
+  <div class="page-header">
+    <span class="header-icon">📅</span>
+    <h1>谢谢你，愿意相信我</h1>
+    <p class="subtitle">请把你的问题放心地告诉我，屏幕上的小家伙们很喜欢偷看别人的秘密，写的时候挡着点！</p>
+  </div>
 
   <!-- Step indicator -->
   <div class="steps" id="step-indicator">
     <div class="step-item">
       <div class="step-dot active" id="dot1">1</div>
-      <span class="step-label active" id="lbl1">填写信息</span>
+      <span class="step-label active" id="lbl1">告诉我发生了什么</span>
     </div>
-    <div class="step-connector"></div>
+    <div class="step-connector" id="conn1"></div>
     <div class="step-item">
       <div class="step-dot" id="dot2">2</div>
-      <span class="step-label" id="lbl2">选择时间</span>
+      <span class="step-label" id="lbl2">找个时间聊一下</span>
     </div>
-    <div class="step-connector"></div>
+    <div class="step-connector" id="conn2"></div>
     <div class="step-item">
       <div class="step-dot" id="dot3">3</div>
-      <span class="step-label" id="lbl3">确认提交</span>
+      <span class="step-label" id="lbl3">就这么说定了</span>
     </div>
   </div>
 
-  <!-- Step 1: Info form -->
-  <div id="step1">
+  <!-- Step 1 -->
+  <div id="step1" class="step-enter">
     <div class="card">
       <div class="form-group">
         <label for="name">你的姓名</label>
         <input type="text" id="name" placeholder="请输入飞书中的姓名" autocomplete="name">
-        <div class="hint">用于在飞书中找到你，并发送日程邀请</div>
+        <div class="hint">我会在飞书上发送日程邀请</div>
       </div>
       <div class="form-group">
-        <label for="content">会议内容</label>
-        <textarea id="content" rows="5" placeholder="请用自然语言描述你希望讨论的内容，不用太正式，AI 会帮你整理成会议主题…"></textarea>
-        <div class="hint">可以多写一些背景、目的、想讨论的问题等</div>
+        <label for="content">交流内容</label>
+        <textarea id="content" rows="5" placeholder="不用组织语言，想到什么说什么…"></textarea>
+        <ul class="hint-list">
+          <li>放心啰嗦，不必在意语言逻辑</li>
+          <li>字数不限，背景越详细越好</li>
+          <li>意识流即可，想到什么写什么</li>
+        </ul>
       </div>
     </div>
     <div id="step1-error" class="alert alert-error" style="display:none"></div>
-    <button class="btn btn-primary" id="btn-next1" onclick="goToStep2()">下一步：选择时间</button>
+    <button class="btn btn-primary" id="btn-next1" onclick="goToStep2()">下一步：选择时间 ✦</button>
   </div>
 
-  <!-- Step 2: Date & time selection -->
+  <!-- Step 2 -->
   <div id="step2" style="display:none">
     <button class="btn btn-secondary" onclick="goToStep1()">← 返回修改</button>
     <div class="card">
-      <label>选择日期</label>
+      <label style="margin-bottom:12px">选择日期</label>
       <div class="date-tabs" id="date-tabs"></div>
-      <label>选择时段</label>
+      <label style="margin-bottom:10px">选择时段</label>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot free"></div> 可选</div>
         <div class="legend-item"><div class="legend-dot busy"></div> 已占用</div>
         <div class="legend-item"><div class="legend-dot sel"></div> 已选择</div>
       </div>
-      <div id="time-slots-container">
-        <div class="loading-slots">加载中…</div>
-      </div>
+      <div id="time-slots-container"></div>
     </div>
     <div id="step2-error" class="alert alert-error" style="display:none"></div>
-    <button class="btn btn-primary" id="btn-next2" onclick="goToStep3()" disabled>下一步：确认预约</button>
+    <button class="btn btn-primary" id="btn-next2" onclick="goToStep3()" disabled>下一步：确认预约 ✦</button>
   </div>
 
-  <!-- Step 3: Confirm -->
+  <!-- Step 3 -->
   <div id="step3" style="display:none">
     <button class="btn btn-secondary" onclick="goToStep2()">← 重新选择</button>
     <div class="card">
@@ -329,58 +721,171 @@
       </div>
     </div>
     <div id="step3-error" class="alert alert-error" style="display:none"></div>
-    <button class="btn btn-primary" id="btn-submit" onclick="submitBooking()">确认预约</button>
+    <button class="btn btn-primary" id="btn-submit" onclick="submitBooking()">确认预约 🎉</button>
   </div>
 
-  <!-- Step 4: Success -->
+  <!-- Step 4: Success flip card -->
   <div id="step4" style="display:none">
-    <div class="card" style="text-align:center;padding:40px 24px">
-      <div class="success-icon">✅</div>
-      <div class="success-title">预约成功！</div>
-      <p class="success-desc" id="success-desc"></p>
+    <div class="flip-card" id="flipCard" onclick="flipSuccessCard()">
+      <div class="flip-inner">
+
+        <!-- 正面：预约成功 -->
+        <div class="flip-front card">
+          <div class="success-wrap">
+            <div class="success-icon-wrap">
+              <div class="success-ring-1"></div>
+              <div class="success-ring-2"></div>
+              <svg id="success-svg" width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <circle cx="26" cy="26" r="22" stroke="url(#gs)" stroke-width="2.2"/>
+                <polyline points="15,26 22,33 37,17" stroke="url(#gs)" stroke-width="2.4"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                  <linearGradient id="gs" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%"   stop-color="#4f6ef7"/>
+                    <stop offset="100%" stop-color="#9055f5"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="success-title">预约成功！🎊</div>
+            <p class="success-desc" id="success-desc"></p>
+          </div>
+          <div class="flip-hint-row">✨ 点击卡片有惊喜</div>
+        </div>
+
+        <!-- 背面：随机名言 -->
+        <div class="flip-back card">
+          <div class="quote-wrap">
+            <span class="quote-bigmark">"</span>
+            <p class="quote-text" id="quoteText"></p>
+            <p class="quote-author" id="quoteAuthor"></p>
+            <p class="quote-back-hint">再次点击翻回 ↩</p>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
-</div>
 
+</div>
 <script>
 const API = '/appointment/api';
-const HOURS = [9,10,11,12,13,14,15,16,17,18,19,20];  // 9:00–21:00
+const HOURS = [9,10,11,12,13,14,15,16,17,18,19,20];
 
 let state = {
-  name: '',
-  content: '',
+  name: '', content: '',
   attendeeOpenId: null,
-  busyData: {},        // date string → array of {start, end} ISO strings
-  selectedDate: null,  // 'YYYY-MM-DD'
-  selectedSlot: null,  // {start, end} ISO strings
+  busyData: {},
+  selectedDate: null, selectedSlot: null,
   busyLoaded: false,
 };
 
-// ── Step 1 ──────────────────────────────────────────────────────────────────
-async function goToStep2() {
-  const name = document.getElementById('name').value.trim();
-  const content = document.getElementById('content').value.trim();
-  if (!name) return showError('step1-error', '请填写你的姓名');
-  if (!content) return showError('step1-error', '请填写会议内容');
+// ── Spotlight on cards ────────────────────────────────────────
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.setProperty('--mx', '-400px');
+    card.style.setProperty('--my', '-400px');
+  });
+});
 
-  state.name = name;
-  state.content = content;
+// ── Ripple on primary buttons ─────────────────────────────────
+document.querySelectorAll('.btn-primary').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    if (this.disabled) return;
+    const r = this.getBoundingClientRect();
+    const size = Math.max(r.width, r.height) * 2;
+    const el = document.createElement('span');
+    el.className = 'ripple-effect';
+    el.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-r.left-size/2}px;top:${e.clientY-r.top-size/2}px`;
+    this.appendChild(el);
+    setTimeout(() => el.remove(), 650);
+  });
+});
+
+// ── Particle burst ────────────────────────────────────────────
+function burstParticles(anchor, count = 28) {
+  const r = anchor.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top  + r.height / 2;
+  const palette = [
+    '#4f6ef7','#9055f5','#06b6d4',
+    '#818cf8','#a78bfa','#67e8f9',
+    '#c4b5fd','#bfdbfe','#fff',
+  ];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + (Math.random() - .5) * 0.5;
+    const dist  = 60 + Math.random() * 100;
+    const size  = 4 + Math.random() * 6;
+    const p = document.createElement('div');
+    p.style.cssText = `
+      position:fixed;z-index:9999;border-radius:50%;pointer-events:none;
+      width:${size}px;height:${size}px;
+      background:${palette[Math.floor(Math.random()*palette.length)]};
+      left:${cx}px;top:${cy}px;
+      --dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist}px;
+      animation:particleFly ${.7 + Math.random()*.4}s ease-out ${Math.random()*.1}s forwards;
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1200);
+  }
+}
+
+// ── SVG draw animation ────────────────────────────────────────
+function animateSuccessSvg() {
+  const svg = document.getElementById('success-svg');
+  const els = [...svg.querySelectorAll('circle, polyline')];
+  els.forEach(el => {
+    try {
+      const len = el.getTotalLength ? el.getTotalLength() : 200;
+      el.style.transition = 'none';
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+    } catch (_) {}
+  });
+  svg.getBoundingClientRect();
+  els.forEach((el, i) => {
+    el.style.transition = `stroke-dashoffset ${.5 + i*.3}s cubic-bezier(.4,0,.2,1) ${i*.15}s`;
+    el.style.strokeDashoffset = '0';
+  });
+}
+
+// ── Skeleton slots ────────────────────────────────────────────
+function showSkeleton() {
+  const c = document.getElementById('time-slots-container');
+  const g = document.createElement('div');
+  g.className = 'skeleton-grid';
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement('div');
+    s.className = 'skeleton-slot';
+    g.appendChild(s);
+  }
+  c.innerHTML = ''; c.appendChild(g);
+}
+
+// ── Step 1 ────────────────────────────────────────────────────
+async function goToStep2() {
+  const name    = document.getElementById('name').value.trim();
+  const content = document.getElementById('content').value.trim();
+  if (!name)    return showError('step1-error', '请填写你的姓名');
+  if (!content) return showError('step1-error', '请填写会议内容');
+  state.name = name; state.content = content;
   hideError('step1-error');
 
   setStep(2);
+  showSkeleton();
   renderDateTabs();
-
-  // Pre-fetch user open_id and busy data in parallel
-  if (!state.busyLoaded) {
-    await Promise.all([fetchBusy(), lookupUser()]);
-  }
+  if (!state.busyLoaded) await Promise.all([fetchBusy(), lookupUser()]);
 }
 
 async function lookupUser() {
   try {
     const r = await fetch(`${API}/lookup-user`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name: state.name}),
     });
     const d = await r.json();
@@ -388,14 +893,12 @@ async function lookupUser() {
   } catch (_) {}
 }
 
-// ── Freebusy ────────────────────────────────────────────────────────────────
+// ── Freebusy ─────────────────────────────────────────────────
 async function fetchBusy() {
   const today = new Date();
   const start = fmtLocalISO(today, 'T00:00:00+08:00');
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + 13);
+  const endDate = new Date(today); endDate.setDate(today.getDate() + 13);
   const end = fmtLocalISO(endDate, 'T23:59:59+08:00');
-
   try {
     const r = await fetch(`${API}/slots?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
     const d = await r.json();
@@ -403,203 +906,430 @@ async function fetchBusy() {
     parseBusy(d.busy || []);
     state.busyLoaded = true;
   } catch (e) {
-    // Non-fatal: show all slots as available
     state.busyLoaded = true;
     console.warn('Freebusy fetch failed:', e);
   }
-
-  // Render slots for currently selected date
   if (state.selectedDate) renderSlots(state.selectedDate);
 }
 
 function parseBusy(intervals) {
   state.busyData = {};
   for (const iv of intervals) {
-    const startDt = new Date(iv.start);
-    const endDt = new Date(iv.end);
-    // Mark each hour block that overlaps
-    let cur = new Date(startDt);
-    while (cur < endDt) {
-      const dateKey = localDateStr(cur);
-      if (!state.busyData[dateKey]) state.busyData[dateKey] = new Set();
-      state.busyData[dateKey].add(cur.getHours());
-      cur = new Date(cur.getTime() + 60 * 60 * 1000);
+    const s = new Date(iv.start), e = new Date(iv.end);
+    let cur = new Date(s);
+    while (cur < e) {
+      const k = localDateStr(cur);
+      if (!state.busyData[k]) state.busyData[k] = new Set();
+      state.busyData[k].add(cur.getHours());
+      cur = new Date(cur.getTime() + 3600000);
     }
   }
 }
 
-// ── Date tabs ────────────────────────────────────────────────────────────────
+// ── Date tabs ─────────────────────────────────────────────────
 const DOW = ['日','一','二','三','四','五','六'];
 
 function renderDateTabs() {
-  const container = document.getElementById('date-tabs');
-  container.innerHTML = '';
+  const c = document.getElementById('date-tabs');
+  c.innerHTML = '';
   const today = new Date();
   for (let i = 0; i < 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    if (d.getDay() === 0 || d.getDay() === 6) continue; // Skip weekends
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
     const key = localDateStr(d);
     const tab = document.createElement('div');
     tab.className = 'date-tab' + (key === state.selectedDate ? ' selected' : '');
     tab.innerHTML = `<div>${key.slice(5)}</div><div class="dow">周${DOW[d.getDay()]}</div>`;
     tab.onclick = () => selectDate(key);
-    container.appendChild(tab);
+    c.appendChild(tab);
   }
-  // Select first date if none selected
-  if (!state.selectedDate) {
-    const first = container.querySelector('.date-tab');
-    if (first) first.click();
-  }
+  if (!state.selectedDate) { const f = c.querySelector('.date-tab'); if (f) f.click(); }
 }
 
-function selectDate(dateKey) {
-  state.selectedDate = dateKey;
-  state.selectedSlot = null;
+function selectDate(key) {
+  state.selectedDate = key; state.selectedSlot = null;
   document.getElementById('btn-next2').disabled = true;
-  document.querySelectorAll('.date-tab').forEach(el => {
-    el.classList.toggle('selected', el.textContent.includes(dateKey.slice(5)));
-  });
-  renderSlots(dateKey);
+  document.querySelectorAll('.date-tab').forEach(el =>
+    el.classList.toggle('selected', el.textContent.includes(key.slice(5))));
+  renderSlots(key);
 }
 
-// ── Time slots ────────────────────────────────────────────────────────────────
+// ── Time slots ────────────────────────────────────────────────
 function renderSlots(dateKey) {
-  const container = document.getElementById('time-slots-container');
-  if (!state.busyLoaded) {
-    container.innerHTML = '<div class="loading-slots">加载日历数据…</div>';
-    return;
-  }
+  const c = document.getElementById('time-slots-container');
+  if (!state.busyLoaded) { showSkeleton(); return; }
 
   const busyHours = state.busyData[dateKey] || new Set();
   const now = new Date();
   const isToday = dateKey === localDateStr(now);
 
-  container.innerHTML = '';
+  c.innerHTML = '';
   const grid = document.createElement('div');
   grid.className = 'time-grid';
 
-  for (const h of HOURS) {
-    const slot = document.createElement('div');
+  HOURS.forEach((h, idx) => {
     const startStr = `${dateKey}T${String(h).padStart(2,'0')}:00:00+08:00`;
-    const endStr = `${dateKey}T${String(h+1).padStart(2,'0')}:00:00+08:00`;
-    const isPast = isToday && h <= now.getHours();
-    const isBusy = busyHours.has(h) || isPast;
-    const isSelected = state.selectedSlot && state.selectedSlot.start === startStr;
+    const endStr   = `${dateKey}T${String(h+1).padStart(2,'0')}:00:00+08:00`;
+    const isPast   = isToday && h <= now.getHours();
+    const isBusy   = busyHours.has(h) || isPast;
+    const isSel    = state.selectedSlot && state.selectedSlot.start === startStr;
 
-    slot.className = 'time-slot' + (isBusy ? ' busy' : '') + (isSelected ? ' selected' : '');
+    const slot = document.createElement('div');
+    slot.className = 'time-slot' + (isBusy ? ' busy' : '') + (isSel ? ' selected' : '');
     slot.textContent = `${h}:00–${h+1}:00`;
-
-    if (!isBusy) {
-      slot.onclick = () => selectSlot(startStr, endStr);
-    }
+    slot.style.animationDelay = (idx * 0.04) + 's';
+    if (!isBusy) slot.onclick = () => selectSlot(startStr, endStr);
     grid.appendChild(slot);
-  }
-  container.appendChild(grid);
+  });
+  c.appendChild(grid);
 }
 
 function selectSlot(start, end) {
   state.selectedSlot = {start, end};
-  const dateKey = state.selectedDate;
-  renderSlots(dateKey);
+  renderSlots(state.selectedDate);
   document.getElementById('btn-next2').disabled = false;
   hideError('step2-error');
 }
 
-// ── Step 2 → 3 ────────────────────────────────────────────────────────────────
+// ── Step 2 → 3 ────────────────────────────────────────────────
 function goToStep3() {
   if (!state.selectedSlot) return showError('step2-error', '请选择一个时间段');
   hideError('step2-error');
-
   document.getElementById('confirm-name').textContent = state.name;
   const {start, end} = state.selectedSlot;
-  const startDt = new Date(start);
-  const endDt = new Date(end);
+  const s = new Date(start), e = new Date(end);
   document.getElementById('confirm-time').textContent =
-    `${localDateStr(startDt)} ${String(startDt.getHours()).padStart(2,'0')}:00 – ${String(endDt.getHours()).padStart(2,'0')}:00`;
+    `${localDateStr(s)} ${String(s.getHours()).padStart(2,'0')}:00 – ${String(e.getHours()).padStart(2,'0')}:00`;
   document.getElementById('confirm-content').textContent =
-    state.content.length > 100 ? state.content.slice(0, 100) + '…' : state.content;
-
+    state.content.length > 100 ? state.content.slice(0,100) + '…' : state.content;
   setStep(3);
 }
 
-// ── Submit ─────────────────────────────────────────────────────────────────
+// ── Submit ────────────────────────────────────────────────────
 async function submitBooking() {
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-spinner"></span> 正在创建日程…';
   hideError('step3-error');
-
   try {
     const r = await fetch(`${API}/book`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        name: state.name,
-        content: state.content,
-        start_time: state.selectedSlot.start,
-        end_time: state.selectedSlot.end,
+        name: state.name, content: state.content,
+        start_time: state.selectedSlot.start, end_time: state.selectedSlot.end,
         attendee_open_id: state.attendeeOpenId,
       }),
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || '创建失败');
 
-    const startDt = new Date(state.selectedSlot.start);
-    const endDt = new Date(state.selectedSlot.end);
+    const s = new Date(state.selectedSlot.start), e = new Date(state.selectedSlot.end);
     document.getElementById('success-desc').textContent =
-      `已为你创建日程「${d.title}」，时间为 ${localDateStr(startDt)} ` +
-      `${String(startDt.getHours()).padStart(2,'0')}:00–${String(endDt.getHours()).padStart(2,'0')}:00。` +
+      `已为你创建日程「${d.title}」，时间为 ${localDateStr(s)} ` +
+      `${String(s.getHours()).padStart(2,'0')}:00–${String(e.getHours()).padStart(2,'0')}:00。` +
       (state.attendeeOpenId ? ' 已在飞书日历中向你发送邀请。' : '');
+
+    pickRandomQuote();
+    document.getElementById('flipCard')?.classList.remove('flipped');
     setStep(4);
-  } catch (e) {
-    showError('step3-error', e.message || '提交失败，请稍后重试');
-    btn.disabled = false;
-    btn.textContent = '确认预约';
+    setTimeout(animateSuccessSvg, 100);
+    setTimeout(() => burstParticles(document.getElementById('success-svg'), 36), 420);
+
+  } catch (err) {
+    showError('step3-error', err.message || '提交失败，请稍后重试');
+    btn.disabled = false; btn.textContent = '确认预约 🎉';
   }
 }
 
-// ── Step 1 nav ────────────────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────
 function goToStep1() { setStep(1); }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── setStep ───────────────────────────────────────────────────
 function setStep(n) {
   [1,2,3,4].forEach(i => {
-    document.getElementById('step'+i).style.display = i === n ? '' : 'none';
+    const p = document.getElementById('step' + i);
+    if (i === n) {
+      p.style.display = '';
+      p.classList.remove('step-enter');
+      p.getBoundingClientRect();
+      p.classList.add('step-enter');
+    } else {
+      p.style.display = 'none';
+    }
   });
-  // Update step indicator
+
   [1,2,3].forEach(i => {
-    const dot = document.getElementById('dot'+i);
-    const lbl = document.getElementById('lbl'+i);
-    dot.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
-    if (i < n) dot.textContent = '✓';
-    else dot.textContent = i;
+    const dot = document.getElementById('dot' + i);
+    const lbl = document.getElementById('lbl' + i);
+    if (i < n) {
+      dot.className = 'step-dot done';
+      dot.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <polyline points="2,6 5,9 10,3" stroke="white" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    } else {
+      dot.className = 'step-dot' + (i === n ? ' active' : '');
+      dot.textContent = i;
+    }
     lbl.className = 'step-label' + (i === n ? ' active' : '');
   });
-  if (n === 4) document.getElementById('step-indicator').style.display = 'none';
+
+  [1,2].forEach(i => {
+    const conn = document.getElementById('conn' + i);
+    if (conn) conn.classList.toggle('done', n > i);
+  });
+
+  if (n === 4) {
+    document.getElementById('step-indicator').style.display = 'none';
+    // 小人庆祝弹跳
+    if (typeof window._charsSuccess === 'function') window._charsSuccess();
+  }
 }
 
+// ── 几何色块小人（careercompassai 逻辑复刻） ──────────────────
+(function initChars() {
+  let mouseX = 0, mouseY = 0;
+  let isTyping    = false;   // 输入姓名时：小人礼貌回避
+  let showPeek    = false;   // 输入内容时：小人偷看
+  let peekLen     = 0;       // 内容长度
+  let pBlink      = false;   // 紫色眨眼
+  let dBlink      = false;   // 深色眨眼
+  let peekState   = false;   // 偷看状态（随机触发）
+
+  // 全局鼠标追踪
+  window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+  // 随机眨眼：紫色
+  function schedulePBlink() {
+    setTimeout(() => {
+      pBlink = true;
+      setTimeout(() => { pBlink = false; schedulePBlink(); }, 150);
+    }, 3000 + Math.random() * 4000);
+  }
+  // 随机眨眼：深色
+  function scheduleDBlink() {
+    setTimeout(() => {
+      dBlink = true;
+      setTimeout(() => { dBlink = false; scheduleDBlink(); }, 150);
+    }, 3000 + Math.random() * 4000);
+  }
+  schedulePBlink();
+  scheduleDBlink();
+
+  // 计算身体偏转角度和眼睛偏移
+  function getLook(el) {
+    if (!el) return { faceX: 0, faceY: 0, bodySkew: 0 };
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top  + r.height / 3;
+    const dx = mouseX - cx;
+    return {
+      faceX:    Math.max(-15, Math.min(15, dx / 20)),
+      faceY:    Math.max(-10, Math.min(10, (mouseY - cy) / 30)),
+      bodySkew: Math.max(-6,  Math.min(6,  -dx / 120)),
+    };
+  }
+
+  // 更新单个眼球瞳孔
+  function updatePupil(eyeEl, maxDist, fx, fy) {
+    const pupil = eyeEl.querySelector('.pupil');
+    if (!pupil) return;
+    let dx, dy;
+    if (fx !== undefined && fy !== undefined) {
+      dx = fx; dy = fy;
+    } else {
+      const r = eyeEl.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      const angle = Math.atan2(mouseY - cy, mouseX - cx);
+      const dist  = Math.min(Math.sqrt((mouseX-cx)**2 + (mouseY-cy)**2), maxDist);
+      dx = Math.cos(angle) * dist;
+      dy = Math.sin(angle) * dist;
+    }
+    pupil.style.transform = `translate(${dx}px,${dy}px)`;
+  }
+
+  // 主更新循环
+  function update() {
+    const chP = document.getElementById('chP');
+    const chD = document.getElementById('chD');
+    const chO = document.getElementById('chO');
+    const chY = document.getElementById('chY');
+    if (!chP) { requestAnimationFrame(update); return; }
+
+    const N = getLook(chP);
+    const L = getLook(chD);
+    const T = getLook(chO);
+    const J = getLook(chY);
+
+    const X = peekLen > 0 && !showPeek; // 正在输入内容但未偷看
+
+    /* ── 紫色 ─────────────────────────────────────────── */
+    chP.style.height = (isTyping || X) ? '440px' : '400px';
+    if (showPeek && peekLen > 0) {
+      chP.style.transform = 'skewX(0deg)';
+    } else if (isTyping || X) {
+      chP.style.transform = `skewX(${(N.bodySkew||0)-12}deg) translateX(40px)`;
+    } else {
+      chP.style.transform = `skewX(${N.bodySkew||0}deg)`;
+    }
+    const eyesP = document.getElementById('eyesP');
+    if (showPeek && peekLen > 0) {
+      eyesP.style.left = '20px'; eyesP.style.top = '35px';
+    } else if (isTyping) {
+      eyesP.style.left = '55px'; eyesP.style.top = '65px';
+    } else {
+      eyesP.style.left = `${45+N.faceX}px`; eyesP.style.top = `${40+N.faceY}px`;
+    }
+    chP.querySelectorAll('.eye-lg').forEach(e => { e.style.height = pBlink ? '2px' : '18px'; });
+    const pfx = showPeek && peekLen>0 ? (peekState?4:-4) : isTyping?3  : undefined;
+    const pfy = showPeek && peekLen>0 ? (peekState?5:-4) : isTyping?4  : undefined;
+    if (!pBlink) chP.querySelectorAll('.eye-lg').forEach(e => updatePupil(e, 5, pfx, pfy));
+
+    /* ── 深色 ─────────────────────────────────────────── */
+    if (showPeek && peekLen > 0) {
+      chD.style.transform = 'skewX(0deg)';
+    } else if (isTyping) {
+      chD.style.transform = `skewX(${1.5*(L.bodySkew||0)+10}deg) translateX(20px)`;
+    } else if (X) {
+      chD.style.transform = `skewX(${1.5*(L.bodySkew||0)}deg)`;
+    } else {
+      chD.style.transform = `skewX(${L.bodySkew||0}deg)`;
+    }
+    const eyesD = document.getElementById('eyesD');
+    if (showPeek && peekLen > 0) {
+      eyesD.style.left = '10px'; eyesD.style.top = '28px';
+    } else if (isTyping) {
+      eyesD.style.left = '32px'; eyesD.style.top = '12px';
+    } else {
+      eyesD.style.left = `${26+L.faceX}px`; eyesD.style.top = `${32+L.faceY}px`;
+    }
+    chD.querySelectorAll('.eye-md').forEach(e => { e.style.height = dBlink ? '2px' : '16px'; });
+    const dfx = showPeek && peekLen>0 ? -4 : isTyping?0 : undefined;
+    const dfy = (showPeek && peekLen>0) || isTyping ? -4 : undefined;
+    if (!dBlink) chD.querySelectorAll('.eye-md').forEach(e => updatePupil(e, 4, dfx, dfy));
+
+    /* ── 橙色 ─────────────────────────────────────────── */
+    chO.style.transform = (showPeek && peekLen>0) ? 'skewX(0deg)' : `skewX(${T.bodySkew||0}deg)`;
+    const eyesO = document.getElementById('eyesO');
+    if (showPeek && peekLen>0) {
+      eyesO.style.left = '50px'; eyesO.style.top = '85px';
+    } else {
+      eyesO.style.left = `${82+(T.faceX||0)}px`; eyesO.style.top = `${90+(T.faceY||0)}px`;
+    }
+    const ofx = showPeek && peekLen>0 ? -5 : undefined;
+    const ofy = showPeek && peekLen>0 ? -4 : undefined;
+    chO.querySelectorAll('.eye-sm').forEach(e => updatePupil(e, 5, ofx, ofy));
+
+    /* ── 黄色 ─────────────────────────────────────────── */
+    chY.style.transform = (showPeek && peekLen>0) ? 'skewX(0deg)' : `skewX(${J.bodySkew||0}deg)`;
+    const eyesY   = document.getElementById('eyesY');
+    const mouthY  = document.getElementById('mouthY');
+    if (showPeek && peekLen>0) {
+      eyesY.style.left = '20px'; eyesY.style.top = '35px';
+      if (mouthY) { mouthY.style.left = '10px'; mouthY.style.top = '88px'; }
+    } else {
+      eyesY.style.left = `${52+(J.faceX||0)}px`; eyesY.style.top = `${40+(J.faceY||0)}px`;
+      if (mouthY) { mouthY.style.left = `${40+(J.faceX||0)}px`; mouthY.style.top = `${88+(J.faceY||0)}px`; }
+    }
+    const yfx = showPeek && peekLen>0 ? -5 : undefined;
+    const yfy = showPeek && peekLen>0 ? -4 : undefined;
+    chY.querySelectorAll('.eye-sm').forEach(e => updatePupil(e, 5, yfx, yfy));
+
+    requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+
+  // ── 表单状态联动 ────────────────────────────────────────
+  // 姓名框 focus → 小人礼貌回避（不偷看）
+  const nameEl = document.getElementById('name');
+  if (nameEl) {
+    nameEl.addEventListener('focus',  () => { isTyping = true; });
+    nameEl.addEventListener('blur',   () => { isTyping = false; });
+  }
+  // 内容框 → 小人偷看
+  const contentEl = document.getElementById('content');
+  if (contentEl) {
+    contentEl.addEventListener('focus', () => { showPeek = true; peekLen = contentEl.value.length; schedulePeek(); });
+    contentEl.addEventListener('blur',  () => { showPeek = false; peekLen = 0; peekState = false; });
+    contentEl.addEventListener('input', () => { peekLen = contentEl.value.length; });
+  }
+
+  let peekTimer = null;
+  function schedulePeek() {
+    if (peekTimer) clearTimeout(peekTimer);
+    if (!showPeek || peekLen === 0) return;
+    peekTimer = setTimeout(() => {
+      peekState = true;
+      setTimeout(() => { peekState = false; schedulePeek(); }, 800);
+    }, 2000 + Math.random() * 3000);
+  }
+
+  // 成功时所有小人弹跳
+  window._charsSuccess = function() {
+    let t = 0;
+    const els = [chP => chP, chD => chD, chO => chO, chY => chY].map((_,i) =>
+      document.getElementById(['chP','chD','chO','chY'][i]));
+    els.forEach((el,i) => {
+      if (!el) return;
+      el.style.transition = 'transform .3s cubic-bezier(0.34,1.56,0.64,1)';
+      setTimeout(() => {
+        el.style.transform = 'translateY(-24px) rotate(' + (i%2===0?-4:4) + 'deg)';
+        setTimeout(() => { el.style.transform = ''; setTimeout(() => { el.style.transition = ''; }, 300); }, 350);
+      }, i * 80);
+    });
+    // 多次弹跳
+    for (let r = 1; r < 4; r++) {
+      setTimeout(() => {
+        els.forEach((el,i) => {
+          if (!el) return;
+          el.style.transition = 'transform .3s cubic-bezier(0.34,1.56,0.64,1)';
+          setTimeout(() => {
+            el.style.transform = 'translateY(-18px)';
+            setTimeout(() => { el.style.transform = ''; }, 300);
+          }, i * 70);
+        });
+      }, r * 500);
+    }
+  };
+})();
+
+function highlightFigure() {} // stub — no longer needed
+
+// ── 名言库（从 quotes.md 动态加载，失败则用内置备用） ─────────
+const QUOTES = [
+  { text: '凡是过去，皆为序章。', author: '——莎士比亚《暴风雨》' },
+  { text: '世界以痛吻我，要我报之以歌。', author: '——泰戈尔《飞鸟集》' },
+  { text: '所谓无底深渊，下去，也是前程万里。', author: '——木心' },
+];
+fetch('quotes.md').then(r => r.text()).then(txt => {
+  const parsed = txt.split('\n')
+    .filter(l => l.includes(' | ') && !l.trimStart().startsWith('#') && !l.trimStart().startsWith('<'))
+    .map(l => { const [t, a] = l.split(' | '); return { text: t.trim(), author: '——' + a.trim() }; })
+    .filter(q => q.text && q.author);
+  if (parsed.length) { QUOTES.length = 0; QUOTES.push(...parsed); }
+}).catch(() => {});
+
+function flipSuccessCard() {
+  document.getElementById('flipCard').classList.toggle('flipped');
+}
+
+function pickRandomQuote() {
+  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  document.getElementById('quoteText').textContent  = q.text;
+  document.getElementById('quoteAuthor').textContent = q.author;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
 function showError(id, msg) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.style.display = '';
+  const el = document.getElementById(id); el.textContent = msg; el.style.display = '';
 }
-
-function hideError(id) {
-  document.getElementById(id).style.display = 'none';
-}
+function hideError(id) { document.getElementById(id).style.display = 'none'; }
 
 function localDateStr(d) {
-  // YYYY-MM-DD in local timezone
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
-function fmtLocalISO(d, suffix) {
-  return localDateStr(d) + suffix;
-}
+function fmtLocalISO(d, suffix) { return localDateStr(d) + suffix; }
 </script>
 </body>
 </html>
