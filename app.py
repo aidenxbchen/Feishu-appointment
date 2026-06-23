@@ -9,7 +9,7 @@ import os
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='static', static_url_path='/appointment/static')
 
 LARK = '/home/admin/.hermes/node/bin/lark-cli'
 CLAUDE = '/home/admin/.local/bin/claude'
