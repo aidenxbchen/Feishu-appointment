@@ -13,8 +13,8 @@ app = Flask(__name__, static_folder='static')
 
 LARK = '/home/admin/.hermes/node/bin/lark-cli'
 CLAUDE = '/home/admin/.local/bin/claude'
-# User open_id of the calendar owner (陈曦斌)
 OWNER_OPEN_ID = 'ou_5f427cfac9103e9e0b2428236d377586'
+STYLE_GUIDE = os.path.join(os.path.dirname(__file__), 'title_style_guide.md')
 
 
 def run_lark(args, identity='user', timeout=30):
@@ -29,11 +29,19 @@ def run_lark(args, identity='user', timeout=30):
 # ── AI title generation via local Claude CLI ───────────────────────────────────
 
 def generate_event_title(requester_name: str, content: str) -> str:
+    style_section = ''
+    try:
+        with open(STYLE_GUIDE, 'r') as f:
+            style_section = f'\n\n参考以下风格指南生成标题：\n{f.read()}'
+    except Exception:
+        pass
+
     prompt = (
         f'请根据以下会议申请内容，为一个飞书日历事件生成简洁的会议主题（不超过20字）。\n'
         f'申请人：{requester_name}\n'
-        f'内容：{content}\n\n'
-        f'只输出会议主题，不要任何解释。格式示例：与张三讨论产品需求评审'
+        f'内容：{content}'
+        f'{style_section}\n\n'
+        f'只输出会议主题，不要任何解释。'
     )
     try:
         result = subprocess.run(
