@@ -1,0 +1,17 @@
+[Unit]
+Description=Appointment Booking App (xbchen.top/appointment)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/home/admin/appointment
+ExecStart=/usr/bin/python3 /home/admin/appointment/app.py
+Restart=always
+RestartSec=5
+Environment=PORT=5001
+Environment=PATH=/home/admin/.hermes/node/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target
