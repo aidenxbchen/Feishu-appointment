@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预约会议 — 陈曦斌</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+  }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  /* Step indicator */
+  .steps {
+    display: flex;
+    align-items: center;
+    margin-bottom: 32px;
+    gap: 0;
+  }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #999;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .step-dot.active { background: #1a1a1a; color: #fff; }
+  .step-dot.done { background: #4caf50; color: #fff; }
+  .step-label { font-size: 13px; color: #666; white-space: nowrap; }
+  .step-label.active { color: #1a1a1a; font-weight: 600; }
+  .step-connector {
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 0 8px;
+  }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+  }
+
+  input[type=text], textarea {
+    width: 100%;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+    resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus { border-color: #1a1a1a; }
+
+  .hint { font-size: 12px; color: #999; margin-top: 4px; }
+
+  .form-group { margin-bottom: 20px; }
+  .form-group:last-child { margin-bottom: 0; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .btn-primary { background: #1a1a1a; color: #fff; width: 100%; }
+  .btn-primary:hover { background: #333; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    color: #666;
+    border: 1.5px solid #e0e0e0;
+    margin-bottom: 12px;
+  }
+  .btn-secondary:hover { border-color: #999; color: #333; }
+
+  /* Date picker */
+  .date-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .date-tab {
+    padding: 8px 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    background: #fff;
+    text-align: center;
+    transition: all .15s;
+    min-width: 64px;
+  }
+  .date-tab:hover { border-color: #999; }
+  .date-tab.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .date-tab .dow { font-size: 11px; opacity: .7; }
+
+  /* Time grid */
+  .time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .time-slot {
+    padding: 10px 8px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    transition: all .15s;
+    background: #fff;
+    user-select: none;
+  }
+  .time-slot:hover:not(.busy):not(.selected) { border-color: #999; }
+  .time-slot.busy {
+    background: #f5f5f5;
+    color: #bbb;
+    cursor: not-allowed;
+    border-color: #e8e8e8;
+    text-decoration: line-through;
+  }
+  .time-slot.selected {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  /* Summary */
+  .summary-row {
+    display: flex;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-label { color: #666; width: 80px; flex-shrink: 0; }
+  .summary-value { color: #1a1a1a; font-weight: 500; }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .alert-error { background: #fff3f3; color: #c0392b; border: 1px solid #fcc; }
+  .alert-success { background: #f0fff4; color: #1e7e34; border: 1px solid #b2dfdb; }
+
+  .success-icon {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .success-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+  .success-desc { font-size: 14px; color: #666; text-align: center; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #666;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    border: 1.5px solid #e0e0e0;
+  }
+  .legend-dot.free { background: #fff; }
+  .legend-dot.busy { background: #f5f5f5; }
+  .legend-dot.sel { background: #1a1a1a; border-color: #1a1a1a; }
+
+  .loading-slots {
+    text-align: center;
+    padding: 32px;
+    color: #999;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>预约会议</h1>
+  <p class="subtitle">请填写信息并选择合适的时间，我会在飞书日历中为你创建邀约</p>
+
+  <!-- Step indicator -->
+  <div class="steps" id="step-indicator">
+    <div class="step-item">
+      <div class="step-dot active" id="dot1">1</div>
+      <span class="step-label active" id="lbl1">填写信息</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot2">2</div>
+      <span class="step-label" id="lbl2">选择时间</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot3">3</div>
+      <span class="step-label" id="lbl3">确认提交</span>
+    </div>
+  </div>
+
+  <!-- Step 1: Info form -->
+  <div id="step1">
+    <div class="card">
+      <div class="form-group">
+        <label for="name">你的姓名</label>
+        <input type="text" id="name" placeholder="请输入飞书中的姓名" autocomplete="name">
+        <div class="hint">用于在飞书中找到你，并发送日程邀请</div>
+      </div>
+      <div class="form-group">
+        <label for="content">会议内容</label>
+        <textarea id="content" rows="5" placeholder="请用自然语言描述你希望讨论的内容，不用太正式，AI 会帮你整理成会议主题…"></textarea>
+        <div class="hint">可以多写一些背景、目的、想讨论的问题等</div>
+      </div>
+    </div>
+    <div id="step1-error" class="alert alert-error" style="display:none"></div>
+    <button class="btn btn-primary" id="btn-next1" onclick="goToStep2()">下一步：选择时间</button>
+  </div>
+
+  <!-- Step 2: Date & time selection -->
+  <div id="step2" style="display:none">
+    <button class="btn btn-secondary" onclick="goToStep1()">← 返回修改</button>
+    <div class="card">
+      <label>选择日期</label>
+      <div class="date-tabs" id="date-tabs"></div>
+      <label>选择时段</label>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot free"></div> 可选</div>
+        <div class="legend-item"><div class="legend-dot busy"></div> 已占用</div>
+        <div class="legend-item"><div class="legend-dot sel"></div> 已选择</div>
+      </div>
+      <div id="time-slots-container">
+        <div class="loading-slots">加载中…</div>
+      </div>
+    </div>
+    <div id="step2-error" class="alert alert-error" style="display:none"></div>
+    <button class="btn btn-primary" id="btn-next2" onclick="goToStep3()" disabled>下一步：确认预约</button>
+  </div>
+
+  <!-- Step 3: Confirm -->
+  <div id="step3" style="display:none">
+    <button class="btn btn-secondary" onclick="goToStep2()">← 重新选择</button>
+    <div class="card">
+      <div class="summary-row">
+        <div class="summary-label">姓名</div>
+        <div class="summary-value" id="confirm-name"></div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">时间</div>
+        <div class="summary-value" id="confirm-time"></div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">内容摘要</div>
+        <div class="summary-value" id="confirm-content"></div>
+      </div>
+    </div>
+    <div id="step3-error" class="alert alert-error" style="display:none"></div>
+    <button class="btn btn-primary" id="btn-submit" onclick="submitBooking()">确认预约</button>
+  </div>
+
+  <!-- Step 4: Success -->
+  <div id="step4" style="display:none">
+    <div class="card" style="text-align:center;padding:40px 24px">
+      <div class="success-icon">✅</div>
+      <div class="success-title">预约成功！</div>
+      <p class="success-desc" id="success-desc"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/appointment/api';
+const HOURS = [9,10,11,12,13,14,15,16,17,18,19,20];  // 9:00–21:00
+
+let state = {
+  name: '',
+  content: '',
+  attendeeOpenId: null,
+  busyData: {},        // date string → array of {start, end} ISO strings
+  selectedDate: null,  // 'YYYY-MM-DD'
+  selectedSlot: null,  // {start, end} ISO strings
+  busyLoaded: false,
+};
+
+// ── Step 1 ──────────────────────────────────────────────────────────────────
+async function goToStep2() {
+  const name = document.getElementById('name').value.trim();
+  const content = document.getElementById('content').value.trim();
+  if (!name) return showError('step1-error', '请填写你的姓名');
+  if (!content) return showError('step1-error', '请填写会议内容');
+
+  state.name = name;
+  state.content = content;
+  hideError('step1-error');
+
+  setStep(2);
+  renderDateTabs();
+
+  // Pre-fetch user open_id and busy data in parallel
+  if (!state.busyLoaded) {
+    await Promise.all([fetchBusy(), lookupUser()]);
+  }
+}
+
+async function lookupUser() {
+  try {
+    const r = await fetch(`${API}/lookup-user`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: state.name}),
+    });
+    const d = await r.json();
+    if (d.found) state.attendeeOpenId = d.open_id;
+  } catch (_) {}
+}
+
+// ── Freebusy ────────────────────────────────────────────────────────────────
+async function fetchBusy() {
+  const today = new Date();
+  const start = fmtLocalISO(today, 'T00:00:00+08:00');
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() + 13);
+  const end = fmtLocalISO(endDate, 'T23:59:59+08:00');
+
+  try {
+    const r = await fetch(`${API}/slots?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    parseBusy(d.busy || []);
+    state.busyLoaded = true;
+  } catch (e) {
+    // Non-fatal: show all slots as available
+    state.busyLoaded = true;
+    console.warn('Freebusy fetch failed:', e);
+  }
+
+  // Render slots for currently selected date
+  if (state.selectedDate) renderSlots(state.selectedDate);
+}
+
+function parseBusy(intervals) {
+  state.busyData = {};
+  for (const iv of intervals) {
+    const startDt = new Date(iv.start);
+    const endDt = new Date(iv.end);
+    // Mark each hour block that overlaps
+    let cur = new Date(startDt);
+    while (cur < endDt) {
+      const dateKey = localDateStr(cur);
+      if (!state.busyData[dateKey]) state.busyData[dateKey] = new Set();
+      state.busyData[dateKey].add(cur.getHours());
+      cur = new Date(cur.getTime() + 60 * 60 * 1000);
+    }
+  }
+}
+
+// ── Date tabs ────────────────────────────────────────────────────────────────
+const DOW = ['日','一','二','三','四','五','六'];
+
+function renderDateTabs() {
+  const container = document.getElementById('date-tabs');
+  container.innerHTML = '';
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue; // Skip weekends
+    const key = localDateStr(d);
+    const tab = document.createElement('div');
+    tab.className = 'date-tab' + (key === state.selectedDate ? ' selected' : '');
+    tab.innerHTML = `<div>${key.slice(5)}</div><div class="dow">周${DOW[d.getDay()]}</div>`;
+    tab.onclick = () => selectDate(key);
+    container.appendChild(tab);
+  }
+  // Select first date if none selected
+  if (!state.selectedDate) {
+    const first = container.querySelector('.date-tab');
+    if (first) first.click();
+  }
+}
+
+function selectDate(dateKey) {
+  state.selectedDate = dateKey;
+  state.selectedSlot = null;
+  document.getElementById('btn-next2').disabled = true;
+  document.querySelectorAll('.date-tab').forEach(el => {
+    el.classList.toggle('selected', el.textContent.includes(dateKey.slice(5)));
+  });
+  renderSlots(dateKey);
+}
+
+// ── Time slots ────────────────────────────────────────────────────────────────
+function renderSlots(dateKey) {
+  const container = document.getElementById('time-slots-container');
+  if (!state.busyLoaded) {
+    container.innerHTML = '<div class="loading-slots">加载日历数据…</div>';
+    return;
+  }
+
+  const busyHours = state.busyData[dateKey] || new Set();
+  const now = new Date();
+  const isToday = dateKey === localDateStr(now);
+
+  container.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'time-grid';
+
+  for (const h of HOURS) {
+    const slot = document.createElement('div');
+    const startStr = `${dateKey}T${String(h).padStart(2,'0')}:00:00+08:00`;
+    const endStr = `${dateKey}T${String(h+1).padStart(2,'0')}:00:00+08:00`;
+    const isPast = isToday && h <= now.getHours();
+    const isBusy = busyHours.has(h) || isPast;
+    const isSelected = state.selectedSlot && state.selectedSlot.start === startStr;
+
+    slot.className = 'time-slot' + (isBusy ? ' busy' : '') + (isSelected ? ' selected' : '');
+    slot.textContent = `${h}:00–${h+1}:00`;
+
+    if (!isBusy) {
+      slot.onclick = () => selectSlot(startStr, endStr);
+    }
+    grid.appendChild(slot);
+  }
+  container.appendChild(grid);
+}
+
+function selectSlot(start, end) {
+  state.selectedSlot = {start, end};
+  const dateKey = state.selectedDate;
+  renderSlots(dateKey);
+  document.getElementById('btn-next2').disabled = false;
+  hideError('step2-error');
+}
+
+// ── Step 2 → 3 ────────────────────────────────────────────────────────────────
+function goToStep3() {
+  if (!state.selectedSlot) return showError('step2-error', '请选择一个时间段');
+  hideError('step2-error');
+
+  document.getElementById('confirm-name').textContent = state.name;
+  const {start, end} = state.selectedSlot;
+  const startDt = new Date(start);
+  const endDt = new Date(end);
+  document.getElementById('confirm-time').textContent =
+    `${localDateStr(startDt)} ${String(startDt.getHours()).padStart(2,'0')}:00 – ${String(endDt.getHours()).padStart(2,'0')}:00`;
+  document.getElementById('confirm-content').textContent =
+    state.content.length > 100 ? state.content.slice(0, 100) + '…' : state.content;
+
+  setStep(3);
+}
+
+// ── Submit ─────────────────────────────────────────────────────────────────
+async function submitBooking() {
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> 正在创建日程…';
+  hideError('step3-error');
+
+  try {
+    const r = await fetch(`${API}/book`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name: state.name,
+        content: state.content,
+        start_time: state.selectedSlot.start,
+        end_time: state.selectedSlot.end,
+        attendee_open_id: state.attendeeOpenId,
+      }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || '创建失败');
+
+    const startDt = new Date(state.selectedSlot.start);
+    const endDt = new Date(state.selectedSlot.end);
+    document.getElementById('success-desc').textContent =
+      `已为你创建日程「${d.title}」，时间为 ${localDateStr(startDt)} ` +
+      `${String(startDt.getHours()).padStart(2,'0')}:00–${String(endDt.getHours()).padStart(2,'0')}:00。` +
+      (state.attendeeOpenId ? ' 已在飞书日历中向你发送邀请。' : '');
+    setStep(4);
+  } catch (e) {
+    showError('step3-error', e.message || '提交失败，请稍后重试');
+    btn.disabled = false;
+    btn.textContent = '确认预约';
+  }
+}
+
+// ── Step 1 nav ────────────────────────────────────────────────────────────────
+function goToStep1() { setStep(1); }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step'+i).style.display = i === n ? '' : 'none';
+  });
+  // Update step indicator
+  [1,2,3].forEach(i => {
+    const dot = document.getElementById('dot'+i);
+    const lbl = document.getElementById('lbl'+i);
+    dot.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+    if (i < n) dot.textContent = '✓';
+    else dot.textContent = i;
+    lbl.className = 'step-label' + (i === n ? ' active' : '');
+  });
+  if (n === 4) document.getElementById('step-indicator').style.display = 'none';
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+function hideError(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function localDateStr(d) {
+  // YYYY-MM-DD in local timezone
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function fmtLocalISO(d, suffix) {
+  return localDateStr(d) + suffix;
+}
+</script>
+</body>
+</html>
