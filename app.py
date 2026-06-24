@@ -255,7 +255,24 @@ def index():
 
 @app.route('/appointment/api/slots')
 def get_slots():
-    """Return cached busy slots — served from local DB, no Feishu API call."""
+    """Sync from Feishu on every page open (rate-limited to once per 30s), then return local cache."""
+    with get_db() as conn:
+        meta = conn.execute(
+            "SELECT value FROM cache_meta WHERE key = 'busy_synced_at'"
+        ).fetchone()
+
+    should_sync = True
+    if meta and meta['value']:
+        try:
+            elapsed = (datetime.now() - datetime.fromisoformat(meta['value'])).total_seconds()
+            if elapsed < 30:
+                should_sync = False
+        except Exception:
+            pass
+
+    if should_sync:
+        sync_busy_slots()
+
     with get_db() as conn:
         rows = conn.execute('SELECT start_time, end_time FROM busy_slots').fetchall()
         meta = conn.execute(
