@@ -27,8 +27,7 @@ OWNER_OPEN_ID = 'ou_5f427cfac9103e9e0b2428236d377586'
 STYLE_GUIDE = os.path.join(os.path.dirname(__file__), 'title_style_guide.md')
 DB_PATH = os.path.join(os.path.dirname(__file__), 'appointments.db')
 
-BUSY_SYNC_INTERVAL = 300   # seconds between Feishu free/busy syncs
-WORKER_TICK = 30           # seconds between pending-booking sweeps
+WORKER_TICK = 30  # seconds between pending-booking sweeps
 MAX_RETRY = 3
 
 _booking_lock = threading.Lock()
@@ -52,6 +51,7 @@ def init_db():
                 content       TEXT    NOT NULL,
                 start_time    TEXT    NOT NULL,
                 end_time      TEXT    NOT NULL,
+                title         TEXT,
                 status        TEXT    NOT NULL DEFAULT 'pending',
                 attendee_open_id TEXT,
                 event_id      TEXT,
@@ -70,7 +70,16 @@ def init_db():
                 key        TEXT PRIMARY KEY,
                 value      TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS member_aliases (
+                alias       TEXT PRIMARY KEY,
+                member_name TEXT NOT NULL
+            );
         ''')
+        try:
+            conn.execute('ALTER TABLE bookings ADD COLUMN title TEXT')
+        except Exception:
+            pass
 
 
 # ── Feishu helpers ─────────────────────────────────────────────────────────────
@@ -84,6 +93,145 @@ def run_lark(args, identity='user', timeout=30):
         return {'ok': False, 'error': {'message': 'lark-cli timeout'}}
     except Exception as e:
         return {'ok': False, 'error': {'message': str(e)}}
+
+
+def extract_users(lookup_result):
+    if not lookup_result.get('ok'):
+        return []
+    return (lookup_result.get('data', {}).get('results', []) or
+            lookup_result.get('data', {}).get('users', []))
+
+
+_roster_cache: list = []
+_roster_cache_time: float = 0
+
+
+def get_team_roster(force: bool = False) -> list:
+    """Fetch internal Feishu team members. force=True always re-fetches (used on page load)."""
+    global _roster_cache, _roster_cache_time
+    if not force and _roster_cache:
+        return _roster_cache
+
+    seen: set = set()
+    roster = []
+    # two smaller batches to avoid stdout truncation
+    for surnames in ['李,王,张,陈,刘,赵,黄,周,吴,孙', '林,郑,徐,朱,杨,高,余,韩,郭,何,谢,曾,许,邓,萧,冯,唐,傅,邹,熊']:
+        result = run_lark(
+            ['contact', '+search-user', '--queries', surnames, '--exclude-external-users'],
+            identity='user', timeout=25
+        )
+        users = result.get('data', {}).get('users', []) or result.get('data', {}).get('results', [])
+        for u in users:
+            name = u.get('localized_name') or u.get('name', '')
+            oid = u.get('open_id', '')
+            email = u.get('enterprise_email', '')
+            email_prefix = email.split('@')[0] if email else ''
+            if oid and oid not in seen and name:
+                seen.add(oid)
+                roster.append({'name': name, 'email_prefix': email_prefix, 'open_id': oid})
+
+    if roster:
+        _roster_cache = roster
+        _roster_cache_time = time.time()
+        # Sync English names from 个人说明书 docs into alias table
+        threading.Thread(target=_sync_en_name_aliases, args=(roster,), daemon=True).start()
+
+    return _roster_cache
+
+
+def _sync_en_name_aliases(roster: list):
+    """Paginate 个人说明书 docs, extract English names, upsert into member_aliases.
+    Skips cross-tenant docs (former employees / external) to avoid stale mappings."""
+    import re
+    oid_to_name = {m['open_id']: m['name'] for m in roster}
+    pairs = []
+    page_token = None
+
+    while True:
+        args = ['docs', '+search', '--query', '个人说明书', '--page-size', '20']
+        if page_token:
+            args += ['--page-token', page_token]
+        result = run_lark(args, identity='user', timeout=25)
+        data = result.get('data', {})
+        items = data.get('results', [])
+
+        for item in items:
+            meta = item.get('result_meta', {})
+            # skip cross-tenant documents (former/external members)
+            if item.get('is_cross_tenant') or meta.get('is_cross_tenant'):
+                continue
+            owner_id = meta.get('owner_id', '')
+            member_name = oid_to_name.get(owner_id)
+            if not member_name:
+                continue
+            title = item.get('title_highlighted', '').replace('<h>', '').replace('</h>', '')
+            m = re.match(r'^([A-Za-z][A-Za-z\s\.]+?)\s*个人说明书', title)
+            if not m:
+                continue
+            en_name = m.group(1).strip()
+            if en_name:
+                pairs.append((en_name, member_name))
+
+        if not data.get('has_more'):
+            break
+        page_token = data.get('page_token')
+        if not page_token:
+            break
+
+    if pairs:
+        with get_db() as conn:
+            conn.executemany(
+                'INSERT OR IGNORE INTO member_aliases (alias, member_name) VALUES (?, ?)',
+                pairs
+            )
+        print(f'[roster] synced {len(pairs)} English name aliases from 个人说明书')
+
+
+def normalize_name_with_ai(input_name: str) -> str:
+    """Resolve a fuzzy name to a Chinese name: alias table first, then Claude with roster context."""
+    # 1. Check manually maintained alias table first
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT member_name FROM member_aliases WHERE lower(alias) = lower(?)',
+            [input_name.strip()]
+        ).fetchone()
+    if row:
+        return row['member_name']
+
+    # 2. Ask Claude with roster + email prefix context
+    roster = get_team_roster()
+    if roster:
+        lines = []
+        for m in roster:
+            ep = f" | {m['email_prefix']}" if m['email_prefix'] else ''
+            lines.append(f"{m['name']}{ep}")
+        roster_ctx = (
+            '\n\n团队成员名单（格式：中文名 | 邮箱前缀，邮箱前缀即其英文/拼音名）：\n'
+            + '\n'.join(lines)
+        )
+    else:
+        roster_ctx = ''
+
+    prompt = (
+        f'预约表单的姓名栏填写的是："{input_name}"\n'
+        f'常见情况：中文全拼（lixinyu→李鑫宇）、首字母缩写（lxy→李鑫宇）、'
+        f'姓名倒置（xinyuli→李鑫宇）、拼音英文名（xinyu→李鑫宇）、昵称等。'
+        f'{roster_ctx}\n\n'
+        f'请推断最可能对应的中文姓名（2-4个汉字）。'
+        f'如果无法从名单中确定对应关系，原样返回输入内容，不要猜测。\n'
+        f'只输出姓名本身，不要任何解释。'
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE, '-p', '--no-session-persistence'],
+            input=prompt, capture_output=True, text=True, timeout=15
+        )
+        guessed = result.stdout.strip().replace('**', '').strip()
+        if guessed:
+            return guessed
+    except Exception:
+        pass
+    return input_name
 
 
 def generate_event_title(requester_name: str, content: str) -> str:
@@ -158,17 +306,27 @@ def process_booking(booking_id):
 
     # Step 1: lookup user — internal member gets a calendar invite, external gets skipped
     attendee_open_id = None
-    lookup = run_lark(['contact', '+search-user', '--query', name], identity='user')
-    if lookup.get('ok'):
-        users = (lookup.get('data', {}).get('results', []) or
-                 lookup.get('data', {}).get('users', []))
-        if users:
-            u = users[0]
-            attendee_open_id = u.get('open_id') or u.get('user', {}).get('open_id')
+    display_name = name  # resolved name used for title/notification; falls back to raw input
 
-    # Step 2: generate AI title and create Feishu calendar event
-    title       = generate_event_title(name, content)
-    description = f'申请人：{name}\n\n{content}'
+    users = extract_users(run_lark(['contact', '+search-user', '--query', name], identity='user'))
+
+    if not users:
+        # Input may be initials / pinyin / reversed — ask Claude to normalize
+        normalized = normalize_name_with_ai(name)
+        if normalized and normalized != name:
+            users = extract_users(run_lark(['contact', '+search-user', '--query', normalized], identity='user'))
+            if users:
+                display_name = normalized  # confirmed match against roster
+
+    if users:
+        u = users[0]
+        # prefer the canonical name returned by Feishu
+        display_name = u.get('localized_name') or u.get('name') or display_name
+        attendee_open_id = u.get('open_id') or u.get('user', {}).get('open_id')
+
+    # Step 2: use pre-generated title if available, else generate now with resolved name
+    title       = row['title'] if row['title'] else generate_event_title(display_name, content)
+    description = f'申请人：{display_name}\n\n{content}'
 
     create_args = [
         'calendar', '+create',
@@ -201,9 +359,9 @@ def process_booking(booking_id):
         time_display = start_time
 
     summary = content[:80] + ('…' if len(content) > 80 else '')
-    notify_text = f'📅 新预约\n申请人：{name}\n时间：{time_display}\n内容：{summary}'
+    notify_text = f'📅 新预约\n申请人：{display_name}\n时间：{time_display}\n内容：{summary}'
     run_lark(
-        ['im', '+send', '--receiver-id', OWNER_OPEN_ID, '--text', notify_text],
+        ['im', '+messages-send', '--user-id', OWNER_OPEN_ID, '--text', notify_text],
         identity='bot'
     )
 
@@ -220,14 +378,7 @@ def process_booking(booking_id):
 # ── Background worker loop ─────────────────────────────────────────────────────
 
 def background_worker():
-    sync_busy_slots()
-    last_sync = time.time()
-
     while True:
-        if time.time() - last_sync >= BUSY_SYNC_INTERVAL:
-            sync_busy_slots()
-            last_sync = time.time()
-
         with get_db() as conn:
             pending = conn.execute(
                 '''SELECT id FROM bookings
@@ -255,23 +406,9 @@ def index():
 
 @app.route('/appointment/api/slots')
 def get_slots():
-    """Sync from Feishu on every page open (rate-limited to once per 30s), then return local cache."""
-    with get_db() as conn:
-        meta = conn.execute(
-            "SELECT value FROM cache_meta WHERE key = 'busy_synced_at'"
-        ).fetchone()
-
-    should_sync = True
-    if meta and meta['value']:
-        try:
-            elapsed = (datetime.now() - datetime.fromisoformat(meta['value'])).total_seconds()
-            if elapsed < 30:
-                should_sync = False
-        except Exception:
-            pass
-
-    if should_sync:
-        sync_busy_slots()
+    """On each page load: sync busy slots from Feishu and refresh team roster in background."""
+    sync_busy_slots()
+    threading.Thread(target=get_team_roster, kwargs={'force': True}, daemon=True).start()
 
     with get_db() as conn:
         rows = conn.execute('SELECT start_time, end_time FROM busy_slots').fetchall()
@@ -297,6 +434,7 @@ def book():
     content    = body.get('content', '').strip()
     start_time = body.get('start_time', '')
     end_time   = body.get('end_time', '')
+    title      = body.get('title', '').strip() or None
 
     if not all([name, content, start_time, end_time]):
         return jsonify({'error': '缺少必填字段'}), 400
@@ -311,12 +449,12 @@ def book():
                 return jsonify({'error': '该时段刚刚被预约，请重新选择其他时间'}), 409
 
             cursor = conn.execute(
-                'INSERT INTO bookings (name, content, start_time, end_time) VALUES (?, ?, ?, ?)',
-                [name, content, start_time, end_time]
+                'INSERT INTO bookings (name, content, start_time, end_time, title) VALUES (?, ?, ?, ?, ?)',
+                [name, content, start_time, end_time, title]
             )
             booking_id = cursor.lastrowid
 
-    return jsonify({'ok': True, 'booking_id': booking_id})
+    return jsonify({'ok': True, 'booking_id': booking_id, 'title': title or f'与 {name} 的会议'})
 
 
 if __name__ == '__main__':

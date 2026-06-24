@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>预约会议 — 陈曦斌</title>
+<title>我想和你见一面</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -416,12 +416,15 @@
   }
 
   .success-title {
-    font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px;
+    font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px;
     background: linear-gradient(135deg, var(--a1), var(--a2));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  .success-desc { font-size: 14px; color: var(--muted); line-height: 1.65; }
+  .success-desc {
+    font-size: 15px; font-weight: 500; color: var(--text);
+    line-height: 1.7; margin-bottom: 4px;
+  }
 
   /* ── Textarea hint bullet list ───────────────────────────── */
   .hint-list { margin-top: 7px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
@@ -473,10 +476,15 @@
   .flip-card.flipped .flip-front { visibility: hidden;  transition: visibility 0s 0.3s; }
   .flip-hint-row {
     display: flex; align-items: center; justify-content: center; gap: 5px;
-    margin-top: 14px; font-size: 12px; color: #aeaeb2;
+    margin-top: 16px; padding: 7px 18px;
+    font-size: 13px; font-weight: 600;
+    color: var(--a1);
+    border: 1.5px solid rgba(79,110,247,0.25);
+    border-radius: 20px;
+    width: fit-content; margin-left: auto; margin-right: auto;
     animation: flipHintPulse 2.5s ease-in-out infinite;
   }
-  @keyframes flipHintPulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
+  @keyframes flipHintPulse { 0%,100%{opacity:.5} 50%{opacity:1} }
 
   /* Quote back */
   .quote-wrap { text-align: center; padding: 8px 12px; width: 100%; }
@@ -770,7 +778,7 @@
             <div class="success-title">预约成功！🎊</div>
             <p class="success-desc" id="success-desc"></p>
           </div>
-          <div class="flip-hint-row">✨ 点击卡片有惊喜</div>
+          <div class="flip-hint-row" id="flip-hint"></div>
         </div>
 
         <!-- 背面：随机名言 -->
@@ -799,6 +807,7 @@ let state = {
   selectedDate: null, selectedSlot: null,
   busyLoaded: false,
 };
+let busyFetchPromise = null;
 
 // ── Spotlight on cards ────────────────────────────────────────
 document.querySelectorAll('.card').forEach(card => {
@@ -897,9 +906,12 @@ async function goToStep2() {
   hideError('step1-error');
 
   setStep(2);
-  showSkeleton();
   renderDateTabs();
-  if (!state.busyLoaded) await Promise.all([fetchBusy(), lookupUser()]);
+  if (!state.busyLoaded) {
+    await busyFetchPromise;
+    if (state.selectedDate) renderSlots(state.selectedDate);
+  }
+  lookupUser();
 }
 
 async function lookupUser() {
@@ -1022,6 +1034,7 @@ function goToStep3() {
     `${localDateStr(s)} ${String(s.getHours()).padStart(2,'0')}:00 – ${String(e.getHours()).padStart(2,'0')}:00`;
   document.getElementById('confirm-content').textContent =
     state.content.length > 100 ? state.content.slice(0,100) + '…' : state.content;
+
   setStep(3);
 }
 
@@ -1029,25 +1042,26 @@ function goToStep3() {
 async function submitBooking() {
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
-  btn.innerHTML = '<span class="loading-spinner"></span> 正在创建日程…';
+  btn.innerHTML = '<span class="loading-spinner"></span> 提交中…';
   hideError('step3-error');
+
+  const {start, end} = state.selectedSlot;
+  const s = new Date(start), e = new Date(end);
+
   try {
     const r = await fetch(`${API}/book`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         name: state.name, content: state.content,
-        start_time: state.selectedSlot.start, end_time: state.selectedSlot.end,
-        attendee_open_id: state.attendeeOpenId,
+        start_time: start, end_time: end,
       }),
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || '创建失败');
 
-    const s = new Date(state.selectedSlot.start), e = new Date(state.selectedSlot.end);
-    document.getElementById('success-desc').textContent =
-      `已为你创建日程「${d.title}」，时间为 ${localDateStr(s)} ` +
-      `${String(s.getHours()).padStart(2,'0')}:00–${String(e.getHours()).padStart(2,'0')}:00。` +
-      (state.attendeeOpenId ? ' 已在飞书日历中向你发送邀请。' : '');
+    const dateStr = `${s.getMonth()+1}月${s.getDate()}日 ${String(s.getHours()).padStart(2,'0')}:00`;
+    document.getElementById('success-desc').textContent = `我已经等不及见到你，我们${dateStr}见`;
+    document.getElementById('flip-hint').textContent = '✨ 点击卡片翻面有惊喜';
 
     pickRandomQuote();
     document.getElementById('flipCard')?.classList.remove('flipped');
@@ -1350,6 +1364,9 @@ function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function fmtLocalISO(d, suffix) { return localDateStr(d) + suffix; }
+
+// Prefetch busy slots immediately so step 2 is instant
+busyFetchPromise = fetchBusy();
 </script>
 </body>
 </html>
