@@ -188,9 +188,10 @@ def _sync_en_name_aliases(roster: list):
         print(f'[roster] synced {len(pairs)} English name aliases from 个人说明书')
 
 
-def normalize_name_with_ai(input_name: str) -> str:
-    """Resolve a fuzzy name to a Chinese name: alias table first, then Claude with roster context."""
-    # 1. Check manually maintained alias table first
+def normalize_name_with_ai(input_name: str, ai_enabled: bool = True) -> str:
+    """Resolve a fuzzy name to a Chinese name: alias table first, then Claude with roster context.
+    ai_enabled=False skips the Claude step (safe for Chinese-character inputs to avoid false mappings)."""
+    # 1. Check alias table first — always, regardless of ai_enabled (exact match, no guessing)
     with get_db() as conn:
         row = conn.execute(
             'SELECT member_name FROM member_aliases WHERE lower(alias) = lower(?)',
@@ -198,6 +199,9 @@ def normalize_name_with_ai(input_name: str) -> str:
         ).fetchone()
     if row:
         return row['member_name']
+
+    if not ai_enabled:
+        return input_name
 
     # 2. Ask Claude with roster + email prefix context
     roster = get_team_roster()
@@ -314,14 +318,16 @@ def process_booking(booking_id):
 
     users = extract_users(run_lark(['contact', '+search-user', '--query', name], identity='user'))
 
-    if not users and not re.search(r'[一-鿿]', name):
-        # Only attempt AI normalization for non-Chinese input (pinyin / English name / initials).
-        # If the input is already Chinese characters, the person is external — don't remap to a team member.
-        normalized = normalize_name_with_ai(name)
+    if not users:
+        # For Chinese-character input: check alias table only (covers Chinese nicknames/花名),
+        # but skip AI normalization to avoid false mappings to team members.
+        # For non-Chinese input (pinyin / English / initials): full normalization with AI.
+        is_chinese = bool(re.search(r'[一-鿿]', name))
+        normalized = normalize_name_with_ai(name, ai_enabled=not is_chinese)
         if normalized and normalized != name:
             users = extract_users(run_lark(['contact', '+search-user', '--query', normalized], identity='user'))
             if users:
-                display_name = normalized  # confirmed match against roster
+                display_name = normalized
 
     if users:
         u = users[0]
