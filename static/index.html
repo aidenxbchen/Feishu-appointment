@@ -967,7 +967,6 @@ function renderDateTabs() {
   const today = new Date();
   for (let i = 0; i < 14; i++) {
     const d = new Date(today); d.setDate(today.getDate() + i);
-    if (d.getDay() === 0 || d.getDay() === 6) continue;
     const key = localDateStr(d);
     const tab = document.createElement('div');
     tab.className = 'date-tab' + (key === state.selectedDate ? ' selected' : '');
