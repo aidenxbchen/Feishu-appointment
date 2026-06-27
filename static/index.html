@@ -1047,6 +1047,8 @@ async function submitBooking() {
   const {start, end} = state.selectedSlot;
   const s = new Date(start), e = new Date(end);
 
+  const ctrl = new AbortController();
+  const _tid = setTimeout(() => ctrl.abort(), 20000);
   try {
     const r = await fetch(`${API}/book`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1054,7 +1056,9 @@ async function submitBooking() {
         name: state.name, content: state.content,
         start_time: start, end_time: end,
       }),
+      signal: ctrl.signal,
     });
+    clearTimeout(_tid);
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || '创建失败');
 
@@ -1069,7 +1073,16 @@ async function submitBooking() {
     setTimeout(() => burstParticles(document.getElementById('success-svg'), 36), 420);
 
   } catch (err) {
-    showError('step3-error', err.message || '提交失败，请稍后重试');
+    clearTimeout(_tid);
+    let msg;
+    if (err.name === 'AbortError') {
+      msg = '请求超时，您的预约可能已提交成功，请等待几秒后刷新页面确认，或换个时段重新预约';
+    } else if (err.message === 'Load failed' || err.message === 'Failed to fetch' || err.message === 'NetworkError when attempting to fetch resource.') {
+      msg = '网络异常，请稍等几秒后重试（如反复失败可刷新页面重新填写）';
+    } else {
+      msg = err.message || '提交失败，请稍后重试';
+    }
+    showError('step3-error', msg);
     btn.disabled = false; btn.textContent = '确认预约 🎉';
   }
 }
