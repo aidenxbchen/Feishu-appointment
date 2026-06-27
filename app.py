@@ -214,11 +214,14 @@ def normalize_name_with_ai(input_name: str) -> str:
 
     prompt = (
         f'预约表单的姓名栏填写的是："{input_name}"\n'
+        f'你的任务是把拼音/英文名/昵称（非中文字符）映射到团队中文名。'
         f'常见情况：中文全拼（lixinyu→李鑫宇）、首字母缩写（lxy→李鑫宇）、'
         f'姓名倒置（xinyuli→李鑫宇）、拼音英文名（xinyu→李鑫宇）、昵称等。'
         f'{roster_ctx}\n\n'
-        f'请推断最可能对应的中文姓名（2-4个汉字）。'
-        f'如果无法从名单中确定对应关系，原样返回输入内容，不要猜测。\n'
+        f'重要限制：\n'
+        f'1. 如果输入本身已包含中文字符，直接原样返回，不做任何映射。\n'
+        f'2. 只有在输入是纯拼音/英文/缩写时才尝试匹配名单。\n'
+        f'3. 无法从名单中确定对应关系时，原样返回输入内容，不要猜测。\n'
         f'只输出姓名本身，不要任何解释。'
     )
     try:
@@ -310,8 +313,9 @@ def process_booking(booking_id):
 
     users = extract_users(run_lark(['contact', '+search-user', '--query', name], identity='user'))
 
-    if not users:
-        # Input may be initials / pinyin / reversed — ask Claude to normalize
+    if not users and not re.search(r'[一-鿿]', name):
+        # Only attempt AI normalization for non-Chinese input (pinyin / English name / initials).
+        # If the input is already Chinese characters, the person is external — don't remap to a team member.
         normalized = normalize_name_with_ai(name)
         if normalized and normalized != name:
             users = extract_users(run_lark(['contact', '+search-user', '--query', normalized], identity='user'))
