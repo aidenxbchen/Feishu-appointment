@@ -13,6 +13,7 @@ v1.1 changes:
 import subprocess
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
